@@ -3,14 +3,26 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { useEffect } from 'react';
 import { Scene } from './components/game/Scene';
 import { HUD } from './components/ui/HUD';
 import { MainMenu } from './components/ui/MainMenu';
+import { EndGameMenu } from './components/ui/EndGameMenu';
 import { useGameStore } from './store/useGameStore';
 import { AnimatePresence } from 'motion/react';
+import { auth } from './lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 export default function App() {
   const status = useGameStore((state) => state.status);
+  const setUser = useGameStore((state) => state.setUser);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+    });
+    return () => unsubscribe();
+  }, [setUser]);
 
   return (
     <div className="w-screen h-screen bg-black overflow-hidden select-none">
@@ -18,6 +30,7 @@ export default function App() {
       
       <AnimatePresence>
         {status === 'menu' && <MainMenu />}
+        {status === 'finished' && <EndGameMenu />}
       </AnimatePresence>
 
       {(status === 'playing' || status === 'paused') && <HUD />}

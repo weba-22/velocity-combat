@@ -44,6 +44,20 @@ export function Track() {
         <boxGeometry args={[0.5, 2, 200]} />
         <meshStandardMaterial color="#222" emissive="#ff00ff" emissiveIntensity={2} />
       </mesh>
+
+      {/* Finish Line */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <planeGeometry args={[12, 2]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.5} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[3, 0.03, 0]}>
+        <planeGeometry args={[1, 2]} />
+        <meshBasicMaterial color="#000000" />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[-3, 0.03, 0]}>
+        <planeGeometry args={[1, 2]} />
+        <meshBasicMaterial color="#000000" />
+      </mesh>
     </group>
   );
 }

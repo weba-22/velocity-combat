@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+
+    function isValidUser(data) {
+      return data.uid == request.auth.uid &&
+             data.displayName is string && data.displayName.size() <= 50 &&
+             data.currency is number && data.currency >= 0 &&
+             data.totalScore is number &&
+             data.level is number &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidLeaderboardEntry(data) {
+      return data.userId == request.auth.uid &&
+             data.userName is string && data.userName.size() <= 50 &&
+             data.score is number &&
+             data.timestamp == request.time;
+    }
+
+    // --- Collection Routes ---
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if false; // Users shouldn't be listable globally for privacy
+      
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      
+      allow update: if isOwner(userId) && isValidUser(incoming()) && (
+        // Action: Update score/progression
+        incoming().diff(existing()).affectedKeys().hasOnly(['totalScore', 'wins', 'level', 'currency', 'displayName'])
+      );
+    }
+
+    match /leaderboard/{entryId} {
+      allow get: if true;
+      allow list: if true; // Publicly viewable
+      
+      allow create: if isSignedIn() && isValidId(entryId) && isValidLeaderboardEntry(incoming());
+      allow update, delete: if false; // Scores are immutable once posted
+    }
+  }
+}

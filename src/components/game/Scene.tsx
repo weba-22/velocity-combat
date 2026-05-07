@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Sky, ContactShadows, Environment, Stars } from '@react-three/drei';
 import { Physics, Debug } from '@react-three/cannon';
@@ -8,12 +9,24 @@ import { PowerUp } from './PowerUp';
 import { VFXManager } from './VFXManager';
 import { MissileProjectile } from './MissileProjectile';
 import { Mine } from './Mine';
+import { WeatherSystem } from './WeatherSystem';
+import { TrafficCar } from './TrafficCar';
 
 import { GhostCar } from './GhostCar';
 
 export function Scene() {
   const status = useGameStore((state) => state.status);
   const projectiles = useGameStore((state) => state.projectiles);
+  const time = useGameStore((state) => state.time);
+  const weather = useGameStore((state) => state.weather);
+
+  const fogColor = useMemo(() => {
+    const hour = time % 24;
+    if (weather === 'storm' || weather === 'rain') return '#222';
+    if (hour > 6 && hour < 18) return '#88ccff'; // Day
+    if (hour > 18 && hour < 20) return '#ffaa55'; // Sunset
+    return '#000'; // Night
+  }, [time, weather]);
 
   return (
     <Canvas
@@ -21,11 +34,12 @@ export function Scene() {
       camera={{ position: [0, 5, 12], fov: 50 }}
       className="w-full h-full bg-black"
     >
-      <fog attach="fog" args={['#000', 10, 50]} />
-      <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-      <Sky sunPosition={[100, 20, 100]} />
-      <ambientLight intensity={0.2} />
-      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} castShadow />
+      <fog attach="fog" args={[fogColor, 10, 100]} />
+      {time < 6 || time > 20 ? (
+         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+      ) : null}
+      
+      <WeatherSystem />
       
       <Physics gravity={[0, -9.81, 0]} tolerance={0.001}>
         <Track />
@@ -35,6 +49,11 @@ export function Scene() {
             <GhostCar position={[3, 0.5, -20]} color="#ff0044" speed={12} />
             <GhostCar position={[-3, 0.5, -40]} color="#00ffff" speed={15} />
             <GhostCar position={[2, 0.5, -60]} color="#ffff00" speed={10} />
+            
+            {/* Civilian Traffic */}
+            <TrafficCar position={[1.5, 0.5, -30]} speed={12} />
+            <TrafficCar position={[-1.5, 0.5, -80]} speed={10} />
+            <TrafficCar position={[1.5, 0.5, -120]} speed={15} />
           </>
         )}
         

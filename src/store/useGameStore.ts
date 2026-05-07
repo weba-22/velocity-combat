@@ -27,6 +27,10 @@ interface GameState {
   projectiles: Projectile[];
   shake: number;
   isShielded: boolean;
+  weather: 'clear' | 'rain' | 'storm' | 'snow';
+  time: number; // 0 to 24 (hours)
+  user: any | null;
+  setUser: (user: any | null) => void;
   setSpeed: (speed: number) => void;
   setScore: (score: number) => void;
   setLap: (lap: number) => void;
@@ -39,7 +43,10 @@ interface GameState {
   triggerShake: (intensity: number) => void;
   setShake: (shake: number) => void;
   setShielded: (active: boolean) => void;
+  setWeather: (weather: 'clear' | 'rain' | 'storm' | 'snow') => void;
+  setTime: (time: number) => void;
   startGame: () => void;
+  finishGame: () => void;
   pauseGame: () => void;
   resetGame: () => void;
 }
@@ -57,6 +64,10 @@ export const useGameStore = create<GameState>((set) => ({
   projectiles: [],
   shake: 0,
   isShielded: false,
+  weather: 'clear',
+  time: 12,
+  user: null,
+  setUser: (user) => set({ user }),
   setSpeed: (speed) => set({ speed }),
   setScore: (score) => set((state) => ({ score: state.score + score })),
   setLap: (lap) => set({ lap }),
@@ -77,7 +88,10 @@ export const useGameStore = create<GameState>((set) => ({
   triggerShake: (intensity) => set({ shake: intensity }),
   setShake: (shake) => set({ shake }),
   setShielded: (isShielded) => set({ isShielded }),
+  setWeather: (weather) => set({ weather }),
+  setTime: (time) => set({ time }),
   startGame: () => set({ status: 'playing' }),
+  finishGame: () => set({ status: 'finished' }),
   pauseGame: () => set((state) => ({ status: state.status === 'playing' ? 'paused' : 'playing' })),
-  resetGame: () => set({ status: 'menu', score: 0, speed: 0, lap: 1, powerUp: null, health: 100, effects: [], projectiles: [], shake: 0, isShielded: false }),
+  resetGame: () => set({ status: 'menu', score: 0, speed: 0, lap: 1, powerUp: null, health: 100, effects: [], projectiles: [], shake: 0, isShielded: false, weather: 'clear', time: 12 }),
 }));
