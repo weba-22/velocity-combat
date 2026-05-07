@@ -5,6 +5,8 @@ import { Trophy, RotateCcw, Home, Bomb } from 'lucide-react';
 import { saveHighScore } from '../../lib/firebase';
 import { useTranslation } from 'react-i18next';
 
+import { audioManager } from '../../lib/AudioManager';
+
 export function EndGameMenu() {
   const score = useGameStore((state) => state.score);
   const health = useGameStore((state) => state.health);
@@ -18,8 +20,18 @@ export function EndGameMenu() {
     if (isVictory) saveHighScore(score);
   }, [score, isVictory]);
 
+  const handleRetry = () => {
+    audioManager.playSFX('click');
+    startGame();
+  };
+
+  const handleQuit = () => {
+    audioManager.playSFX('click');
+    resetGame();
+  };
+
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/90 backdrop-blur-xl z-[60] font-sans">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/90 backdrop-blur-xl z-[60] font-sans pointer-events-auto">
       <motion.div 
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -47,14 +59,14 @@ export function EndGameMenu() {
 
         <div className="flex gap-4 justify-center">
            <button 
-             onClick={startGame}
+             onClick={handleRetry}
              className="flex items-center gap-3 px-8 py-4 bg-white text-black font-black uppercase italic tracking-tighter hover:bg-cyan-500 transition-colors"
            >
               <RotateCcw size={20} />
               {t('retry')}
            </button>
            <button 
-             onClick={resetGame}
+             onClick={handleQuit}
              className="flex items-center gap-3 px-8 py-4 bg-zinc-900 text-white font-black uppercase italic tracking-tighter border border-white/10 hover:border-white transition-colors"
            >
               <Home size={20} />

@@ -4,20 +4,21 @@
  */
 
 import { useEffect } from 'react';
-import { Scene } from './components/game/Scene';
-import { HUD } from './components/ui/HUD';
-import { MainMenu } from './components/ui/MainMenu';
-import { EndGameMenu } from './components/ui/EndGameMenu';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { LandingPage } from './pages/LandingPage';
+import { GamePage } from './pages/GamePage';
+import { DownloadPage } from './pages/DownloadPage';
 import { useGameStore } from './store/useGameStore';
-import { AnimatePresence } from 'motion/react';
-import { auth } from './lib/firebase';
+import { auth, validateConnection } from './lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
 export default function App() {
-  const status = useGameStore((state) => state.status);
   const setUser = useGameStore((state) => state.setUser);
 
   useEffect(() => {
+    // Initial connection validation
+    validateConnection();
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
     });
@@ -25,20 +26,15 @@ export default function App() {
   }, [setUser]);
 
   return (
-    <div className="w-screen h-screen bg-black overflow-hidden select-none">
-      <Scene />
-      
-      <AnimatePresence>
-        {status === 'menu' && <MainMenu key="main-menu" />}
-        {status === 'finished' && <EndGameMenu key="end-menu" />}
-      </AnimatePresence>
-
-      {(status === 'playing' || status === 'paused') && <HUD />}
-      
-      {/* Vignette & CRT Overlay */}
-      <div className="fixed inset-0 pointer-events-none shadow-[inset_0_0_200px_rgba(0,0,0,0.8)]" />
-      <div className="fixed inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]" />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/play" element={<GamePage />} />
+        <Route path="/download" element={<DownloadPage />} />
+        {/* Fallback */}
+        <Route path="*" element={<LandingPage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

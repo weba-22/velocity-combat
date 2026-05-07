@@ -15,7 +15,7 @@ interface Projectile {
 }
 
 interface GameState {
-  status: 'menu' | 'playing' | 'paused' | 'finished';
+  status: 'loading' | 'menu' | 'playing' | 'paused' | 'finished';
   score: number;
   speed: number;
   lap: number;
@@ -30,6 +30,12 @@ interface GameState {
   weather: 'clear' | 'rain' | 'storm' | 'snow';
   time: number; // 0 to 24 (hours)
   user: any | null;
+  volume: number;
+  isMuted: boolean;
+  damageState: 'none' | 'light' | 'heavy' | 'critical' | 'destroyed';
+  setLoading: (loading: boolean) => void;
+  setVolume: (volume: number) => void;
+  toggleMute: () => void;
   setUser: (user: any | null) => void;
   setSpeed: (speed: number) => void;
   setScore: (score: number) => void;
@@ -52,7 +58,7 @@ interface GameState {
 }
 
 export const useGameStore = create<GameState>((set) => ({
-  status: 'menu',
+  status: 'loading',
   score: 0,
   speed: 0,
   lap: 1,
@@ -67,12 +73,31 @@ export const useGameStore = create<GameState>((set) => ({
   weather: 'clear',
   time: 12,
   user: null,
+  volume: 0.5,
+  isMuted: false,
+  damageState: 'none',
+  setLoading: (loading) => set({ status: loading ? 'loading' : 'menu' }),
+  setVolume: (volume) => set({ volume }),
+  toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
   setUser: (user) => set({ user }),
   setSpeed: (speed) => set({ speed }),
   setScore: (score) => set((state) => ({ score: state.score + score })),
   setLap: (lap) => set({ lap }),
   setPowerUp: (powerUp) => set({ powerUp }),
-  setHealth: (health) => set({ health: Math.max(0, Math.min(100, health)) }),
+  setHealth: (health) => set((state) => {
+    const newHealth = Math.max(0, Math.min(100, health));
+    let newState: 'none' | 'light' | 'heavy' | 'critical' | 'destroyed' = 'none';
+    if (newHealth <= 0) newState = 'destroyed';
+    else if (newHealth <= 20) newState = 'critical';
+    else if (newHealth <= 50) newState = 'heavy';
+    else if (newHealth <= 80) newState = 'light';
+    
+    return { 
+      health: newHealth, 
+      damageState: newState,
+      status: newHealth <= 0 ? 'finished' : state.status 
+    };
+  }),
   addEffect: (type, position) => set((state) => ({
     effects: [...state.effects, { id: Math.random().toString(36), type, position, timestamp: Date.now() }]
   })),
@@ -97,6 +122,7 @@ export const useGameStore = create<GameState>((set) => ({
     lap: 1,
     powerUp: null,
     health: 100,
+    damageState: 'none',
     effects: [],
     projectiles: [],
     shake: 0,
@@ -104,5 +130,5 @@ export const useGameStore = create<GameState>((set) => ({
   }),
   finishGame: () => set({ status: 'finished' }),
   pauseGame: () => set((state) => ({ status: state.status === 'playing' ? 'paused' : 'playing' })),
-  resetGame: () => set({ status: 'menu', score: 0, speed: 0, lap: 1, powerUp: null, health: 100, effects: [], projectiles: [], shake: 0, isShielded: false, weather: 'clear', time: 12 }),
+  resetGame: () => set({ status: 'menu', score: 0, speed: 0, lap: 1, powerUp: null, health: 100, damageState: 'none', effects: [], projectiles: [], shake: 0, isShielded: false, weather: 'clear', time: 12 }),
 }));

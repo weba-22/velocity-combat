@@ -1,15 +1,69 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
-import firebaseConfig from '../../firebase-applet-config.json';
+import firebaseConfigJSON from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const getFirebaseConfig = () => {
+  // Try to use JSON config first
+  if (firebaseConfigJSON && Object.keys(firebaseConfigJSON).length > 0) {
+    return firebaseConfigJSON;
+  }
+
+  // Fallback to environment variables
+  return {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    firestoreDatabaseId: import.meta.env.VITE_FIREBASE_DATABASE_ID || '(default)'
+  };
+};
+
+const config = getFirebaseConfig();
+
+let app;
+try {
+  if (!getApps().length) {
+    if (!config.apiKey) {
+      console.warn("Firebase configuration is missing. App running in offline mode.");
+      app = null;
+    } else {
+      app = initializeApp(config);
+    }
+  } else {
+    app = getApp();
+  }
+} catch (error) {
+  console.error("Firebase initialization failed:", error);
+  app = null;
+}
+
+export const auth = app ? getAuth(app) : ({} as any);
+export const db = app ? getFirestore(app, config.firestoreDatabaseId || '(default)') : ({} as any);
+
+/**
+ * Validates the connection to Firestore.
+ * This is recommended to ensure the client is not offline or misconfigured.
+ */
+export async function validateConnection() {
+  if (!app) return false;
+  try {
+    const testDoc = doc(db, '_connection_test_', 'ping');
+    await getDoc(testDoc);
+    console.log("[Firebase] Connection established successfully.");
+    return true;
+  } catch (error) {
+    console.warn("[Firebase] Connection test failed. App might be in offline mode:", error);
+    return false;
+  }
+}
 
 const googleProvider = new GoogleAuthProvider();
 
 export const signInWithGoogle = async () => {
+  if (!app) return null;
   try {
     const result = await signInWithPopup(auth, googleProvider);
     // Initialize user doc if it doesn't exist

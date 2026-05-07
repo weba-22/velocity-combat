@@ -1,7 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { Sky, ContactShadows, Environment, Stars } from '@react-three/drei';
-import { Physics, Debug } from '@react-three/cannon';
+import { ContactShadows, Environment, Stars } from '@react-three/drei';
+import { Physics } from '@react-three/cannon';
 import { Car } from './Car';
 import { Track } from './Track';
 import { useGameStore } from '../../store/useGameStore';
@@ -14,7 +14,7 @@ import { TrafficCar } from './TrafficCar';
 
 import { GhostCar } from './GhostCar';
 
-export function Scene() {
+function GameContent() {
   const status = useGameStore((state) => state.status);
   const projectiles = useGameStore((state) => state.projectiles);
   const time = useGameStore((state) => state.time);
@@ -29,11 +29,7 @@ export function Scene() {
   }, [time, weather]);
 
   return (
-    <Canvas
-      shadows
-      camera={{ position: [0, 5, 12], fov: 50 }}
-      className="w-full h-full bg-black"
-    >
+    <>
       <fog attach="fog" args={[fogColor, 10, 100]} />
       {time < 6 || time > 20 ? (
          <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
@@ -43,7 +39,7 @@ export function Scene() {
       
       <Physics gravity={[0, -9.81, 0]} tolerance={0.001}>
         <Track />
-        {status !== 'menu' && (
+        {status !== 'menu' && status !== 'loading' && (
           <>
             <Car />
             <GhostCar position={[3, 0.5, -20]} color="#ff0044" speed={12} />
@@ -76,6 +72,23 @@ export function Scene() {
 
       <Environment preset="night" />
       <ContactShadows resolution={1024} scale={20} blur={2} opacity={0.35} far={10} color="#000" />
+    </>
+  );
+}
+
+export function Scene() {
+  return (
+    <Canvas
+      shadows
+      camera={{ position: [0, 5, 12], fov: 50 }}
+      className="w-full h-full bg-black"
+      onCreated={({ gl }) => {
+        gl.setClearColor('#000000');
+      }}
+    >
+      <Suspense fallback={null}>
+        <GameContent />
+      </Suspense>
     </Canvas>
   );
 }

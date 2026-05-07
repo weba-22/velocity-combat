@@ -27,6 +27,39 @@
         "timestamp": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "userName", "score", "timestamp"]
+    },
+    "Newsletter": {
+      "title": "Newsletter Subscription",
+      "description": "Emails for beta access and updates.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "subscribedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "subscribedAt"]
+    },
+    "PatchNote": {
+      "title": "Patch Note",
+      "description": "Game updates and bug fixes.",
+      "type": "object",
+      "properties": {
+        "version": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["version", "title", "content", "date"]
+    },
+    "DownloadStat": {
+      "title": "Download Statistic",
+      "description": "Tracks game downloads.",
+      "type": "object",
+      "properties": {
+        "platform": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "ip": { "type": "string" }
+      },
+      "required": ["platform", "timestamp"]
     }
   },
   "firestore": {
@@ -37,6 +70,18 @@
     "leaderboard/{entryId}": {
       "schema": "LeaderboardEntry",
       "description": "Global competitive scores."
+    },
+    "newsletters/{subscriptionId}": {
+      "schema": "Newsletter",
+      "description": "Store newsletter signups."
+    },
+    "patches/{patchId}": {
+      "schema": "PatchNote",
+      "description": "Display latest updates."
+    },
+    "downloads/{downloadId}": {
+      "schema": "DownloadStat",
+      "description": "Track download conversion."
     }
   }
 }

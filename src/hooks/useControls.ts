@@ -34,6 +34,7 @@ export const useControls = () => {
           setKeys((k) => ({ ...k, brake: true }));
           break;
         case 'ShiftLeft':
+        case 'ShiftRight':
           setKeys((k) => ({ ...k, boost: true }));
           break;
         case 'KeyE':
@@ -64,6 +65,7 @@ export const useControls = () => {
           setKeys((k) => ({ ...k, brake: false }));
           break;
         case 'ShiftLeft':
+        case 'ShiftRight':
           setKeys((k) => ({ ...k, boost: false }));
           break;
         case 'KeyE':

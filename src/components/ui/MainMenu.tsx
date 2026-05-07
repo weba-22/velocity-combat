@@ -1,21 +1,36 @@
 import { useGameStore } from '../../store/useGameStore';
 import { motion } from 'motion/react';
-import { Play, Settings, Trophy, Globe, LogIn, LogOut, User } from 'lucide-react';
+import { Play, Settings, Trophy, Globe, LogIn, LogOut, User, Volume2, VolumeX } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { signInWithGoogle, logout } from '../../lib/firebase';
 import { Leaderboard } from './Leaderboard';
+import { audioManager } from '../../lib/AudioManager';
 
 export function MainMenu() {
   const startGame = useGameStore((state) => state.startGame);
   const user = useGameStore((state) => state.user);
+  const isMuted = useGameStore((state) => state.isMuted);
+  const toggleMute = useGameStore((state) => state.toggleMute);
   const { t, i18n } = useTranslation();
 
+  const handleStart = () => {
+    console.log("Start Game Clicked");
+    audioManager.playSFX('click');
+    startGame();
+  };
+
+  const handleToggleMute = () => {
+    audioManager.playSFX('click');
+    toggleMute();
+  };
+
   const changeLanguage = (lng: string) => {
+    audioManager.playSFX('click');
     i18n.changeLanguage(lng);
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50 overflow-hidden font-sans">
+    <div className="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50 overflow-hidden font-sans pointer-events-auto">
       {/* Background Animated Lines */}
       <div className="absolute inset-0 opacity-20">
          {Array.from({ length: 20 }).map((_, i) => (
@@ -48,30 +63,32 @@ export function MainMenu() {
               icon={<Play className="fill-current" />} 
               label={t('start_game')} 
               primary 
-              onClick={startGame}
+              onClick={handleStart}
             />
             {user ? (
                <MenuButton 
                  icon={<LogOut />} 
                  label="Sign Out" 
-                 onClick={logout}
+                 onClick={() => { audioManager.playSFX('click'); logout(); }}
                />
             ) : (
                <MenuButton 
                  icon={<LogIn />} 
                  label="Connect Google" 
-                 onClick={signInWithGoogle}
+                 onClick={() => { audioManager.playSFX('click'); signInWithGoogle(); }}
                />
             )}
             <MenuButton 
-              icon={<Globe />} 
-              label={t('garage')} 
+              icon={isMuted ? <VolumeX /> : <Volume2 />} 
+              label={isMuted ? "Unmute" : "Mute"} 
+              onClick={handleToggleMute}
             />
             <div className="flex gap-2">
               <MenuButton 
                  icon={<Settings />} 
                  label={t('settings')} 
                  className="flex-1"
+                 onClick={() => audioManager.playSFX('click')}
               />
               <div className="flex flex-col gap-1">
                  {['en', 'rw', 'sw'].map((lng) => (

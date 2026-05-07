@@ -14,19 +14,20 @@ function Explosion({ id, position }: { id: string; position: [number, number, nu
   const removeEffect = useGameStore((state) => state.removeEffect);
   const startTime = useRef(Date.now());
   
-  // Layers: 0 = Core, 1 = Smoke, 2 = Debris
-  const CORE_COUNT = 800;
-  const SMOKE_COUNT = 400;
-  const DEBRIS_COUNT = 50;
+  // Counts - Reduced for stability
+  const CORE_COUNT = 400;
+  const SMOKE_COUNT = 200;
+  const DEBRIS_COUNT = 20;
 
   const [coreData, smokeData, debrisData] = useMemo(() => {
     const createBurst = (count: number, velocity: number, spread: number = 1) => {
       const pos = new Float32Array(count * 3);
       const stp = new Float32Array(count * 3);
+      const size = new Float32Array(count);
       for (let i = 0; i < count; i++) {
         const phi = Math.random() * Math.PI * 2;
         const theta = Math.acos(2 * Math.random() - 1);
-        const r = Math.random() * velocity;
+        const r = (0.5 + Math.random() * 0.5) * velocity;
         
         stp[i * 3] = r * Math.sin(theta) * Math.cos(phi) * spread;
         stp[i * 3 + 1] = r * Math.sin(theta) * Math.sin(phi);
@@ -35,107 +36,155 @@ function Explosion({ id, position }: { id: string; position: [number, number, nu
         pos[i * 3] = position[0];
         pos[i * 3 + 1] = position[1];
         pos[i * 3 + 2] = position[2];
+        size[i] = Math.random();
       }
-      return { pos, stp };
+      return { pos, stp, size };
     };
 
+    // Debris needs rotation data too
+    const debris = createBurst(DEBRIS_COUNT, 12, 1.2);
+    const debrisRot = new Float32Array(DEBRIS_COUNT * 3);
+    const debrisRotVel = new Float32Array(DEBRIS_COUNT * 3);
+    for (let i = 0; i < DEBRIS_COUNT; i++) {
+      debrisRotVel[i * 3] = (Math.random() - 0.5) * 0.5;
+      debrisRotVel[i * 3 + 1] = (Math.random() - 0.5) * 0.5;
+      debrisRotVel[i * 3 + 2] = (Math.random() - 0.5) * 0.5;
+    }
+
     return [
-      createBurst(CORE_COUNT, 1.5, 1.2),
-      createBurst(SMOKE_COUNT, 0.4, 0.8),
-      createBurst(DEBRIS_COUNT, 2.0, 1.5)
+      createBurst(CORE_COUNT, 15, 1.2),
+      createBurst(SMOKE_COUNT, 4, 1.5),
+      { ...debris, rot: debrisRot, rotVel: debrisRotVel }
     ];
   }, [position]);
 
   const coreRef = useRef<THREE.Points>(null!);
   const smokeRef = useRef<THREE.Points>(null!);
-  const debrisRef = useRef<THREE.Points>(null!);
+  const debrisRef = useRef<THREE.InstancedMesh>(null!);
   const shockwaveRef = useRef<THREE.Mesh>(null!);
+  const shockwaveRef2 = useRef<THREE.Mesh>(null!);
 
-  useFrame((state) => {
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
+  useFrame(() => {
     const elapsed = (Date.now() - startTime.current) / 1000;
-    if (elapsed > 1.5) {
+    if (elapsed > 2.0) {
       removeEffect(id);
       return;
     }
 
-    // Update Core (Rapid expansion, fast fade)
+    // Update Core (Flash)
     if (coreRef.current) {
       const arr = coreRef.current.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < CORE_COUNT; i++) {
-        arr[i * 3] += coreData.stp[i * 3] * 0.15;
-        arr[i * 3 + 1] += coreData.stp[i * 3 + 1] * 0.15;
-        arr[i * 3 + 2] += coreData.stp[i * 3 + 2] * 0.15;
+        arr[i * 3] += coreData.stp[i * 3] * 0.016;
+        arr[i * 3 + 1] += coreData.stp[i * 3 + 1] * 0.016;
+        arr[i * 3 + 2] += coreData.stp[i * 3 + 2] * 0.016;
+        coreData.stp[i * 3] *= 0.95;
+        coreData.stp[i * 3 + 1] *= 0.95;
+        coreData.stp[i * 3 + 2] *= 0.95;
       }
       coreRef.current.geometry.attributes.position.needsUpdate = true;
-      (coreRef.current.material as THREE.PointsMaterial).opacity = Math.max(0, 1 - elapsed * 2);
+      (coreRef.current.material as THREE.PointsMaterial).opacity = Math.max(0, 1 - elapsed * 4);
+      (coreRef.current.material as THREE.PointsMaterial).size = 0.5 * (1 - elapsed * 2);
     }
 
-    // Update Smoke (Slower, rising)
+    // Update Smoke (Billowing)
     if (smokeRef.current) {
       const arr = smokeRef.current.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < SMOKE_COUNT; i++) {
-        arr[i * 3] += smokeData.stp[i * 3] * 0.05;
-        arr[i * 3 + 1] += smokeData.stp[i * 3 + 1] * 0.05 + 0.02; // Rise up
-        arr[i * 3 + 2] += smokeData.stp[i * 3 + 2] * 0.05;
+        arr[i * 3] += smokeData.stp[i * 3] * 0.016;
+        arr[i * 3 + 1] += smokeData.stp[i * 3 + 1] * 0.016 + 0.01; // Rise
+        arr[i * 3 + 2] += smokeData.stp[i * 3 + 2] * 0.016;
+        smokeData.stp[i * 3] *= 0.98;
+        smokeData.stp[i * 3 + 1] *= 0.98;
+        smokeData.stp[i * 3 + 2] *= 0.98;
       }
       smokeRef.current.geometry.attributes.position.needsUpdate = true;
-      (smokeRef.current.material as THREE.PointsMaterial).opacity = Math.max(0, 0.6 - elapsed * 0.4);
+      (smokeRef.current.material as THREE.PointsMaterial).opacity = Math.max(0, (0.6 - elapsed * 0.3));
+      (smokeRef.current.material as THREE.PointsMaterial).size = 0.8 + elapsed * 2; // Expand
     }
 
-    // Update Debris (Gravity physics)
+    // Update Debris (Instanced chunks)
     if (debrisRef.current) {
-      const arr = debrisRef.current.geometry.attributes.position.array as Float32Array;
       for (let i = 0; i < DEBRIS_COUNT; i++) {
-        arr[i * 3] += debrisData.stp[i * 3] * 0.1;
-        debrisData.stp[i * 3 + 1] -= 0.05; // Gravity
-        arr[i * 3 + 1] += debrisData.stp[i * 3 + 1] * 0.1;
-        arr[i * 3 + 2] += debrisData.stp[i * 3 + 2] * 0.1;
-        if (arr[i * 3 + 1] < 0) arr[i * 3 + 1] = 0; // Ground bounce-ish
+        // Friction and gravity
+        debrisData.stp[i * 3 + 1] -= 0.4; // Gravity
+        
+        debrisData.pos[i * 3] += debrisData.stp[i * 3] * 0.016;
+        debrisData.pos[i * 3 + 1] += debrisData.stp[i * 3 + 1] * 0.016;
+        debrisData.pos[i * 3 + 2] += debrisData.stp[i * 3 + 2] * 0.016;
+
+        // Ground bounce
+        if (debrisData.pos[i * 3 + 1] < 0) {
+          debrisData.pos[i * 3 + 1] = 0;
+          debrisData.stp[i * 3 + 1] *= -0.4; // Bounce damping
+          debrisData.stp[i * 3] *= 0.8;
+          debrisData.stp[i * 3 + 2] *= 0.8;
+          // Stop rot vel
+          debrisData.rotVel[i * 3] *= 0.5;
+        }
+
+        debrisData.rot[i * 3] += debrisData.rotVel[i * 3];
+        debrisData.rot[i * 3 + 1] += debrisData.rotVel[i * 3 + 1];
+        debrisData.rot[i * 3 + 2] += debrisData.rotVel[i * 3 + 2];
+
+        dummy.position.set(debrisData.pos[i * 3], debrisData.pos[i * 3 + 1], debrisData.pos[i * 3 + 2]);
+        dummy.rotation.set(debrisData.rot[i * 3], debrisData.rot[i * 3 + 1], debrisData.rot[i * 3 + 2]);
+        const s = 0.1 + debrisData.size[i] * 0.2;
+        dummy.scale.set(s, s, s);
+        dummy.updateMatrix();
+        debrisRef.current.setMatrixAt(i, dummy.matrix);
       }
-      debrisRef.current.geometry.attributes.position.needsUpdate = true;
-      (debrisRef.current.material as THREE.PointsMaterial).opacity = Math.max(0, 1 - elapsed);
+      debrisRef.current.instanceMatrix.needsUpdate = true;
     }
 
-    // Update Shockwave
+    // Update Shockwaves
     if (shockwaveRef.current) {
-      shockwaveRef.current.scale.setScalar(1 + elapsed * 15);
-      (shockwaveRef.current.material as THREE.MeshStandardMaterial).opacity = Math.max(0, 0.8 - elapsed * 2);
+      shockwaveRef.current.scale.setScalar(1 + elapsed * 30);
+      (shockwaveRef.current.material as THREE.MeshStandardMaterial).opacity = Math.max(0, 0.8 - elapsed * 3);
+    }
+    if (shockwaveRef2.current) {
+      shockwaveRef2.current.scale.setScalar(0.5 + elapsed * 45);
+      (shockwaveRef2.current.material as THREE.MeshStandardMaterial).opacity = Math.max(0, 0.4 - elapsed * 2.5);
     }
   });
 
   return (
     <group>
-      {/* Core Blast */}
+      {/* Core Flash */}
       <points ref={coreRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={CORE_COUNT} array={coreData.pos} itemSize={3} />
         </bufferGeometry>
-        <pointsMaterial size={0.3} color="#ffaa00" transparent blending={THREE.AdditiveBlending} depthWrite={false} />
+        <pointsMaterial size={0.5} color="#ffdd44" transparent opacity={1} blending={THREE.AdditiveBlending} depthWrite={false} />
       </points>
 
-      {/* Smoke */}
+      {/* Smoke Plumes */}
       <points ref={smokeRef}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" count={SMOKE_COUNT} array={smokeData.pos} itemSize={3} />
         </bufferGeometry>
-        <pointsMaterial size={0.6} color="#444444" transparent opacity={0.5} depthWrite={false} />
+        <pointsMaterial size={1} color="#333333" transparent opacity={0.6} depthWrite={false} />
       </points>
 
-      {/* Debris */}
-      <points ref={debrisRef}>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" count={DEBRIS_COUNT} array={debrisData.pos} itemSize={3} />
-        </bufferGeometry>
-        <pointsMaterial size={0.1} color="#222222" transparent />
-      </points>
+      {/* Detailed Debris */}
+      <instancedMesh ref={debrisRef} args={[undefined, undefined, DEBRIS_COUNT]}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#111" roughness={0.3} />
+      </instancedMesh>
 
-      {/* Secondary Shockwave */}
-      <mesh ref={shockwaveRef} position={[position[0], 0.1, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[0.5, 0.7, 32]} />
-        <meshStandardMaterial color="#ff4400" emissive="#ff4400" emissiveIntensity={5} transparent />
+      {/* Shockwaves */}
+      <mesh ref={shockwaveRef} position={[position[0], 0.05, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.95, 1.05, 64]} />
+        <meshStandardMaterial color="#ff6600" emissive="#ff6600" emissiveIntensity={10} transparent />
+      </mesh>
+      <mesh ref={shockwaveRef2} position={[position[0], 0.06, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.98, 1.0, 64]} />
+        <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={5} transparent />
       </mesh>
 
-      <pointLight position={position} color="#ff6600" intensity={5} distance={15} />
+      <pointLight position={position} color="#ff8800" intensity={20} distance={20} />
     </group>
   );
 }

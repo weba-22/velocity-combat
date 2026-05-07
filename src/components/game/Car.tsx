@@ -11,6 +11,8 @@ const WHEEL_WIDTH = 0.2;
 import { ShieldAura } from './ShieldAura';
 import { DamageEffects } from './DamageEffects';
 
+import { audioManager } from '../../lib/AudioManager';
+
 export function Car() {
   const { camera } = useThree();
   const controls = useControls();
@@ -23,6 +25,7 @@ export function Car() {
   const setShielded = useGameStore((state) => state.setShielded);
   const setHealth = useGameStore((state) => state.setHealth);
   const health = useGameStore((state) => state.health);
+  const damageState = useGameStore((state) => state.damageState);
   const lap = useGameStore((state) => state.lap);
   const setLap = useGameStore((state) => state.setLap);
   const totalLaps = useGameStore((state) => state.totalLaps);
@@ -46,6 +49,7 @@ export function Car() {
        const contactPos = e.contact.contactPoint;
        addEffect('hit', [contactPos[0], contactPos[1], contactPos[2]]);
        triggerShake(0.2);
+       audioManager.playSFX('explosion');
        
        if (!isShielded) {
           const newHealth = health - 5;
@@ -173,10 +177,27 @@ export function Car() {
       return;
     }
 
-    const { forward, backward, left, right, brake, action } = controls;
+    const { forward, backward, left, right, brake, action, boost } = controls;
     
+    // Performance Multipliers
+    let engineMultiplier = 1;
+    let steeringMultiplier = 1;
+
+    if (damageState === 'light') engineMultiplier = 0.9;
+    if (damageState === 'heavy') engineMultiplier = 0.7;
+    if (damageState === 'critical') {
+      engineMultiplier = 0.4;
+      steeringMultiplier = 0.6;
+      // Chance of engine sputter
+      if (Math.random() < 0.05) engineMultiplier = 0;
+    }
+    if (damageState === 'destroyed') {
+      engineMultiplier = 0;
+      steeringMultiplier = 0.1; // Seized
+    }
+
     // Power-up activation
-    if (action && currentPowerUp && chassisBody.current) {
+    if (action && currentPowerUp && chassisBody.current && damageState !== 'destroyed') {
        const position = new THREE.Vector3();
        const quaternion = new THREE.Quaternion();
        chassisBody.current.getWorldPosition(position);
@@ -189,26 +210,31 @@ export function Car() {
           addEffect('nitro-blast', posArray);
           chassisApi.applyImpulse([0, 0, -2000], [0, 0, 0]);
           triggerShake(0.3);
+          audioManager.playSFX('nitro');
        } else if (currentPowerUp === 'missile') {
           const offset = new THREE.Vector3(0, 0, -2).applyQuaternion(quaternion);
           addProjectile('missile', [position.x + offset.x, position.y + offset.y, position.z + offset.z], rotArray);
           triggerShake(0.1);
+          audioManager.playSFX('missile');
        } else if (currentPowerUp === 'shield') {
           addEffect('shield', posArray);
           triggerShake(0.05);
           setShielded(true);
+          audioManager.playSFX('shield');
           setTimeout(() => setShielded(false), 5000);
        } else if (currentPowerUp === 'mine') {
           const offset = new THREE.Vector3(0, 0, 2).applyQuaternion(quaternion);
           addProjectile('mine', [position.x + offset.x, position.y + offset.y, position.z + offset.z], rotArray);
           triggerShake(0.2);
+          audioManager.playSFX('mine');
        }
        
        usePowerUp(null); 
     }
 
-    const engineForce = forward ? 1500 : backward ? -800 : 0;
-    const steeringValue = left ? 0.5 : right ? -0.5 : 0;
+    const baseEngineForce = forward ? 1500 : backward ? -800 : 0;
+    const engineForce = (boost && forward ? baseEngineForce * 2 : baseEngineForce) * engineMultiplier;
+    const steeringValue = (left ? 0.5 : right ? -0.5 : 0) * steeringMultiplier;
     const brakeForce = brake ? 50 : 0;
 
     vehicleApi.applyEngineForce(engineForce, 2);
@@ -219,6 +245,28 @@ export function Car() {
     vehicleApi.setBrake(brakeForce, 1);
     vehicleApi.setBrake(brakeForce, 2);
     vehicleApi.setBrake(brakeForce, 3);
+  });
+
+  // Damage visual emitters
+  useFrame((state) => {
+    if (damageState === 'none' || status !== 'playing') return;
+    
+    const pos = new THREE.Vector3();
+    if (chassisBody.current) {
+      chassisBody.current.getWorldPosition(pos);
+      const posArr: [number, number, number] = [pos.x, pos.y, pos.z];
+
+      if (damageState === 'heavy' && state.clock.elapsedTime % 0.5 < 0.02) {
+        addEffect('hit', posArr); // Small sparks
+      }
+      if (damageState === 'critical' && state.clock.elapsedTime % 0.3 < 0.02) {
+        addEffect('nitro-blast', posArr); // Small fire bursts
+      }
+      if (damageState === 'destroyed' && state.clock.elapsedTime % 0.1 < 0.02) {
+        addEffect('hit', posArr);
+        addEffect('nitro-blast', posArr);
+      }
+    }
   });
 
   return (
