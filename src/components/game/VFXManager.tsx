@@ -7,7 +7,7 @@ import * as THREE from 'three';
 interface EffectProps {
   id: string;
   position: [number, number, number];
-  type: 'explosion' | 'nitro';
+  type: 'explosion' | 'nitro' | 'nitro-blast';
 }
 
 function Explosion({ id, position }: { id: string; position: [number, number, number] }) {
@@ -136,6 +136,53 @@ function Explosion({ id, position }: { id: string; position: [number, number, nu
       </mesh>
 
       <pointLight position={position} color="#ff6600" intensity={5} distance={15} />
+    </group>
+  );
+}
+
+function NitroBlastAggressive({ id, position }: { id: string; position: [number, number, number] }) {
+  const removeEffect = useGameStore((state) => state.removeEffect);
+  const startTime = useRef(Date.now());
+  const ring1 = useRef<THREE.Mesh>(null!);
+  const ring2 = useRef<THREE.Mesh>(null!);
+  const ring3 = useRef<THREE.Mesh>(null!);
+
+  useFrame(() => {
+    const elapsed = (Date.now() - startTime.current) / 1000;
+    if (elapsed > 0.6) {
+      removeEffect(id);
+      return;
+    }
+
+    if (ring1.current) {
+      ring1.current.scale.setScalar(1 + elapsed * 35);
+      (ring1.current.material as THREE.MeshStandardMaterial).opacity = 1 - elapsed * 1.6;
+    }
+    if (ring2.current) {
+      ring2.current.scale.setScalar(0.5 + elapsed * 45);
+      (ring2.current.material as THREE.MeshStandardMaterial).opacity = 0.8 - elapsed * 1.3;
+    }
+    if (ring3.current) {
+      ring3.current.scale.setScalar(1.5 + elapsed * 25);
+      (ring3.current.material as THREE.MeshStandardMaterial).opacity = 0.6 - elapsed;
+    }
+  });
+
+  return (
+    <group position={[position[0], 0.1, position[2]]}>
+      <mesh ref={ring1} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.8, 1.2, 64]} />
+        <meshStandardMaterial color="#00ffff" emissive="#00ffff" emissiveIntensity={20} transparent />
+      </mesh>
+      <mesh ref={ring2} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.9, 1.0, 64]} />
+        <meshStandardMaterial color="#ffffff" emissive="#00ffff" emissiveIntensity={15} transparent />
+      </mesh>
+      <mesh ref={ring3} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[1.1, 1.3, 64]} />
+        <meshStandardMaterial color="#0088ff" emissive="#0088ff" emissiveIntensity={10} transparent />
+      </mesh>
+      <pointLight color="#00ffff" intensity={20} distance={20} decay={2} />
     </group>
   );
 }
@@ -311,6 +358,7 @@ export function VFXManager() {
             </>
           )}
           {effect.type === 'nitro' && <NitroBlast id={effect.id} position={effect.position} />}
+          {effect.type === 'nitro-blast' && <NitroBlastAggressive id={effect.id} position={effect.position} />}
           {effect.type === 'shield' && <ShieldBlast id={effect.id} position={effect.position} />}
           {effect.type === 'hit' && <HitEffect id={effect.id} position={effect.position} />}
         </group>

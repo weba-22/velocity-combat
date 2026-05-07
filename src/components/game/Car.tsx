@@ -14,23 +14,28 @@ import { DamageEffects } from './DamageEffects';
 export function Car() {
   const { camera } = useThree();
   const controls = useControls();
+  
+  const status = useGameStore((state) => state.status);
   const setSpeed = useGameStore((state) => state.setSpeed);
   const shake = useGameStore((state) => state.shake);
   const setShake = useGameStore((state) => state.setShake);
-  
   const isShielded = useGameStore((state) => state.isShielded);
   const setShielded = useGameStore((state) => state.setShielded);
-
   const setHealth = useGameStore((state) => state.setHealth);
   const health = useGameStore((state) => state.health);
-
-  const chassisRef = useRef<THREE.Group>(null!);
-  const lastZ = useRef(0);
   const lap = useGameStore((state) => state.lap);
   const setLap = useGameStore((state) => state.setLap);
   const totalLaps = useGameStore((state) => state.totalLaps);
   const finishGame = useGameStore((state) => state.finishGame);
   const score = useGameStore((state) => state.score);
+  const usePowerUp = useGameStore((state) => state.setPowerUp);
+  const currentPowerUp = useGameStore((state) => state.powerUp);
+  const addEffect = useGameStore((state) => state.addEffect);
+  const addProjectile = useGameStore((state) => state.addProjectile);
+  const triggerShake = useGameStore((state) => state.triggerShake);
+
+  const chassisRef = useRef<THREE.Group>(null!);
+  const lastZ = useRef(0);
 
   const [chassisBody, chassisApi] = useBox(() => ({
     allowSleep: false,
@@ -114,13 +119,6 @@ export function Car() {
     ],
   }));
 
-  const usePowerUp = useGameStore((state) => state.setPowerUp);
-  const currentPowerUp = useGameStore((state) => state.powerUp);
-  const addEffect = useGameStore((state) => state.addEffect);
-  const addProjectile = useGameStore((state) => state.addProjectile);
-  const triggerShake = useGameStore((state) => state.triggerShake);
-  const status = useGameStore((state) => state.status);
-
   useEffect(() => {
     const unsubscribe = chassisApi.velocity.subscribe((v) => {
       const vel = new THREE.Vector3(v[0], v[1], v[2]);
@@ -188,7 +186,7 @@ export function Car() {
        const rotArray: [number, number, number] = [0, new THREE.Euler().setFromQuaternion(quaternion).y, 0];
 
        if (currentPowerUp === 'nitro') {
-          addEffect('nitro', posArray);
+          addEffect('nitro-blast', posArray);
           chassisApi.applyImpulse([0, 0, -2000], [0, 0, 0]);
           triggerShake(0.3);
        } else if (currentPowerUp === 'missile') {

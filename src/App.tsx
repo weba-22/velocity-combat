@@ -29,8 +29,8 @@ export default function App() {
       <Scene />
       
       <AnimatePresence>
-        {status === 'menu' && <MainMenu />}
-        {status === 'finished' && <EndGameMenu />}
+        {status === 'menu' && <MainMenu key="main-menu" />}
+        {status === 'finished' && <EndGameMenu key="end-menu" />}
       </AnimatePresence>
 
       {(status === 'playing' || status === 'paused') && <HUD />}

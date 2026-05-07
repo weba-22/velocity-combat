@@ -16,7 +16,7 @@ export function Track() {
         <planeGeometry args={[1000, 1000]} />
         <MeshReflectorMaterial
           blur={[300, 100]}
-          resolution={2048}
+          resolution={512}
           mixBlur={1}
           mixStrength={40}
           roughness={1}

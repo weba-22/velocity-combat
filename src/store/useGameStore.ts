@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 interface Effect {
   id: string;
-  type: 'explosion' | 'nitro' | 'shield' | 'hit';
+  type: 'explosion' | 'nitro' | 'shield' | 'hit' | 'nitro-blast';
   position: [number, number, number];
   timestamp: number;
 }
@@ -90,7 +90,18 @@ export const useGameStore = create<GameState>((set) => ({
   setShielded: (isShielded) => set({ isShielded }),
   setWeather: (weather) => set({ weather }),
   setTime: (time) => set({ time }),
-  startGame: () => set({ status: 'playing' }),
+  startGame: () => set({ 
+    status: 'playing',
+    score: 0,
+    speed: 0,
+    lap: 1,
+    powerUp: null,
+    health: 100,
+    effects: [],
+    projectiles: [],
+    shake: 0,
+    isShielded: false
+  }),
   finishGame: () => set({ status: 'finished' }),
   pauseGame: () => set((state) => ({ status: state.status === 'playing' ? 'paused' : 'playing' })),
   resetGame: () => set({ status: 'menu', score: 0, speed: 0, lap: 1, powerUp: null, health: 100, effects: [], projectiles: [], shake: 0, isShielded: false, weather: 'clear', time: 12 }),
